@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= polls.title %></title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css"/>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row justify-content-center">
+        <div class="col-md-8">
+          <div class="card mt-5">
+            <div class="card-header">
+              <h1 class="text-center"><%= polls.title %></h1>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-md-6">
+                  <form id="poll-form">
+                    <% polls.candidates.forEach((candidate, index) => { %>
+                      <div class="form-check">
+                        <input
+                          class="form-check-input"
+                          type="radio"
+                          name="candidate"
+                          id="candidate-<%= index %>"
+                          value="<%= index %>"
+                        />
+                        <label class="form-check-label" for="candidate-<%= index %>">
+                          <%= candidate.name %>
+                        </label>
+                      </div>
+                    <% }) %>
+                    <button type="submit" class="btn btn-primary mt-3">Vote</button>
+                  </form>
+                </div>
+                <div class="col-md-6">
+                  <canvas id="poll-chart" width="400" height="400"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+        if(document.cookie=='<%= polls._id %>'){
+            document.querySelector('button[type="submit"]').disabled = true;
+        }
+        const socket = io();
+        const canvas = document.getElementById('poll-chart');
+        const ctx = canvas.getContext('2d');
+      
+        let poll;
+      
+        socket.on('connect', () => {
+          socket.emit('join', { id: '<%= polls._id %>' });
+        });
+      
+        socket.on('poll', newPoll => {
+          poll = newPoll;
+      
+          const labels = poll.candidates.map(candidate => candidate.name);
+          const data = poll.candidates.map(candidate => candidate.votes);
+          if (window.pollChart) {
+            window.pollChart.data.labels = labels;
+            window.pollChart.data.datasets[0].data = data;
+            window.pollChart.update();
+          } else {
+            window.pollChart = new Chart(ctx, {
+              type: 'bar',
+              data: {
+                labels,
+                datasets: [
+                  {
+                    data,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1,
+                  },
+                ],
+              },
+              options: {
+                scales: {
+                  yAxes: [
+                    {
+                      ticks: {
+                        beginAtZero: true,
+                      },
+                    },
+                  ],
+                },
+              },
+            });
+          }
+      
+          const candidatesContainer = document.getElementById('candidates-container');
+          candidatesContainer.innerHTML = '';
+          poll.candidates.forEach(candidate => {
+            const candidateContainer = document.createElement('div');
+            candidateContainer.classList.add('d-flex', 'justify-content-between', 'align-items-center', 'mb-2');
+            const candidateName = document.createElement('span');
+            candidateName.innerText = candidate.name;
+            const voteCount = document.createElement('span');
+            voteCount.innerText = `${candidate.votes} votes`;
+            candidateContainer.appendChild(candidateName);
+            candidateContainer.appendChild(voteCount);
+            candidatesContainer.appendChild(candidateContainer);
+          });
+        });
+      
+        socket.on('error', error => {
+          console.error(error);
+          alert(error.message);
+        });
+      
+        document.getElementById('poll-form').addEventListener('submit', event => {
+          event.preventDefault();
+          const selectedCandidate = document.querySelector('input[name="candidate"]:checked');
+          if (selectedCandidate) {
+            const candidateIndex = selectedCandidate.value;
+            document.cookie='<%= polls._id %>; path=/;'
+            document.querySelector('button[type="submit"]').disabled = true;
+            socket.emit('vote', { id: '<%= polls._id %>', candidateIndex });
+          } else {
+            alert('Please select a candidate to vote for.');
+          }
+        });
+        
+      </script>
+      
+    </body>
+</html>      
