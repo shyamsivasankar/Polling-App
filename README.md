@@ -15,6 +15,6 @@ npm install
 node server.js
 ```
 
-## Description
+## Working
 
 The user is allowed to create a polling page for anything he/she wishes. Then the user is redirected to the polling page. The user is also allowed to vote. Then the user can share the link with any other person. People with the link are allowed to vote. The app uses MongoDB to keep track of the number of candidates and vote count and render the polling page accordingly. 
